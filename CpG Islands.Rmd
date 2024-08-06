@@ -1,0 +1,302 @@
+---
+title: "CpG Islands"
+author: "Kincade, Jessica"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# CpG islands 
+
+```{r}
+# read the shores and flanking regions and name the flanks as shores 
+# and CpG islands as CpGi
+bov_isl = readFeatureFlank(
+  "/home/jkincade/Methyl/bosTau9.CpG.Islands.txt",
+  feature.flank.name = c("CpGi", "shores")
+)
+# convert methylDiff object to GRanges and annotate
+# > All_ga=annotateWithGeneParts(as(All_df, "GRanges"), hg.19)
+CpG.all_isl <-
+  annotateWithFeatureFlank(
+    as(CpG.all, "GRanges"),
+    bov_isl$CpGi,
+    bov_isl$shores,
+    feature.name = "CpGi",
+    flank.name = "shores"
+  )
+
+CpG.all_isl 
+
+```
+
+
+```{r}
+#genomation::getMembers(CpG.all_isl )
+genomation::getTargetAnnotationStats(CpG.all_isl )
+```
+
+
+```{r}
+myobj_islands <- regionCounts(CpG.Read, bov_isl$CpGi)
+# Filter the summarized counts by coverage
+myobj_islands_filt <- filterByCoverage(myobj_islands,
+                                       lo.count=10,
+                                       lo.perc=NULL,
+                                       hi.count=NULL,
+                                       hi.perc=99.9)
+# Perform simple normalization
+myobj_islands_filt_norm <- normalizeCoverage(myobj_islands_filt, method = "median")
+# Merge the samples again
+meth_islands <- methylKit::unite(myobj_islands_filt_norm, destrand=FALSE)
+```
+```{r}
+#Now differential methylation is performed as for the single CpGs
+#Test for the differential Methylation
+diff.islands = calculateDiffMeth(meth_islands, mc.cores = 30)
+```
+# Removing 'chrUNs' (chromosome unknown)
+
+```{r}
+rowlist <- list()
+L <- 1
+for(i in 1:nrow(diff.islands)){
+  chr <- diff.islands$chr [i]
+  if(grepl("chrUn",chr)){
+    rowlist [[L]] <- i
+    L <- L + 1
+  }
+}
+#rowlist
+rw.length <- length(rowlist)
+rw.length.minus <- rowlist[[1]] - 1
+rowlist[[rw.length]]
+diff.islands <- diff.islands[-c(rowlist[[1]]:rowlist[[rw.length]]),]
+```
+
+
+
+
+Use diff = 15
+
+
+```{r, echo = FALSE}
+#get differentially methylated CpG Islands
+diff.islands.all =  getMethylDiff(diff.islands, difference = 15, qvalue = 0.01)
+diff.islands.hyper =  getMethylDiff(diff.islands, difference = 15, qvalue = 0.01, type = "hyper")
+diff.islands.hypo =  getMethylDiff(diff.islands, difference = 15, qvalue = 0.01, type = "hypo")
+
+print (paste("Number of sites associated with islands is", dim(diff.islands.all)[1]))
+print (paste("Number of  hyperMethylated sites associated with islands is", dim(diff.islands.hyper)[1]))
+print (paste("Number of  hypoMethylated sites associated with islands is", dim(diff.islands.hypo)[1]))
+
+```
+
+
+```{r, echo =FALSE}
+a2=  dim(getMethylDiff(diff.islands, difference = 10, qvalue = 0.01))[1]
+b2 = dim(getMethylDiff(diff.islands, difference = 15, qvalue = 0.01))[1]
+c2 = dim(getMethylDiff(diff.islands, difference = 20, qvalue = 0.01))[1]
+d2 = dim(getMethylDiff(diff.islands, difference = 25, qvalue = 0.01))[1]
+
+print (paste("Number of sites associated with islands with diff 10 is", a2))
+print (paste("Number of sites associated with islands with diff 15 is", b2))
+print (paste("Number of sites associated with islands with diff 20 is", c2))
+print (paste("Number of sites associated with islands with diff 25 is", d2))
+       
+```
+
+
+
+
+```{r, echo = FALSE}
+diff = c(10,15, 20, 25)
+DMR_isl = c(a2, b2, c2, d2)
+df_DMR_isl = data.frame(diff, DMR_isl)
+
+
+pl_Diff_CpG = ggplot(df_DMR_isl, aes(x = diff, y = DMR_isl)) +
+  geom_point(size = 3) +
+  
+    geom_line(col = "blue")+
+ 
+  ylab("Number of DMR (CpGi)") + xlab("Parameters of diff")+
+  geom_vline(xintercept = 25, linetype = "dashed", color = "black", size = 0.5)+
+  geom_hline(yintercept = 8, linetype = "dashed", color = "black", size = 0.5)+
+  geom_vline(xintercept = 15, linetype = "dashed", color = "red", size = 0.5)+
+  geom_hline(yintercept = 89, linetype = "dashed", color = "red", size = 0.5)+
+  theme_classic()+
+
+theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"))
+
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/PIvsC-CpG-islands-WandWO-overdispcor.pdf')
+pl_Diff_CpG
+dev.off()
+```
+
+Choose difference 15 (red dotted line)
+
+#Using Genomation
+
+```{r}
+myDiff_isl_annot <- annotateWithGeneParts(as((diff.islands.all), "GRanges"), bov)
+myDiff_isl_hyper_annot <- annotateWithGeneParts(as((diff.islands.hyper), "GRanges"), bov)
+myDiff_isl_hypo_annot <- annotateWithGeneParts(as((diff.islands.hypo), "GRanges"), bov)
+# View the distance to the nearest Transcription Start Site; 
+#the target.row column indicates the row number in myDiff_islands_25p
+association.CpGi.all = getAssociationWithTSS(myDiff_isl_annot )
+association.CpGi.hyper = getAssociationWithTSS(myDiff_isl_hyper_annot)
+association.CpGi.hypo = getAssociationWithTSS(myDiff_isl_hypo_annot)
+
+```
+
+
+
+```{r}
+
+#dim(association.CpGi.all)
+df.CpGi.hyper <- getData(diff.islands.hyper)
+
+dim(df.CpGi.hyper)
+df.CpGi.hypo <- getData(diff.islands.hypo)
+
+dim(df.CpGi.hypo)
+df.CpGi.all <- getData(diff.islands.all)
+
+dim(df.CpGi.all)
+
+```
+
+```{r}
+df.CpGi.hyper$REFSEQ <- association.CpGi.hyper$feature.name
+
+df.CpGi.hyper <-
+  separate(df.CpGi.hyper, "REFSEQ", c("REFSEQ", "version"), sep = "\\.")
+CpGi.hyper.gene.id <-
+  bitr(
+    df.CpGi.hyper$REFSEQ,
+    fromType = "REFSEQ",
+    toType = c("SYMBOL", "GENENAME", "ENTREZID"),
+    OrgDb = "org.Bt.eg.db",
+    drop = TRUE
+  )
+symbol.CpGi.hyper <-
+  merge(CpGi.hyper.gene.id, df.CpGi.hyper, by = "REFSEQ")
+#head(symbol.CpGi.hyper, 2)
+
+df.CpGi.hypo$REFSEQ <- association.CpGi.hypo$feature.name
+
+df.CpGi.hypo <-
+  separate(df.CpGi.hypo, "REFSEQ", c("REFSEQ", "version"), sep = "\\.")
+CpGi.hypo.gene.id <-
+  bitr(
+    df.CpGi.hypo$REFSEQ,
+    fromType = "REFSEQ",
+    toType = c("SYMBOL", "GENENAME", "ENTREZID"),
+    OrgDb = "org.Bt.eg.db",
+    drop = TRUE
+  )
+symbol.CpGi.hypo <-
+  merge(CpGi.hypo.gene.id, df.CpGi.hypo, by = "REFSEQ")
+#head(symbol.CpGi.hypo, 2)
+
+
+df.CpGi.all$REFSEQ <- association.CpGi.all$feature.name
+
+df.CpGi.all <-
+  separate(df.CpGi.all, "REFSEQ", c("REFSEQ", "version"), sep = "\\.")
+CpGi.all.gene.id <-
+  bitr(
+    df.CpGi.all$REFSEQ,
+    fromType = "REFSEQ",
+    toType = c("SYMBOL", "GENENAME", "ENTREZID"),
+    OrgDb = "org.Bt.eg.db",
+    drop = TRUE
+  )
+symbol.CpGi.all <-
+  merge(CpGi.all.gene.id, df.CpGi.all, by = "REFSEQ")
+#head(symbol.CpGi.all, 2)
+```
+
+```{r}
+write.csv(merged, file = paste(folder, "merged-DMRs", date, ".csv", sep = ""), row.names = FALSE)
+date = format(Sys.Date(), '%m-%d-%Y')
+#date
+write.csv(
+  symbol.CpGi.hypo,
+  file = paste(folder, "CpGi-Hypo_", date, ".csv", sep = ""),
+  row.names = FALSE
+)
+write.csv(
+  symbol.CpGi.hyper,
+  file = paste(folder, "CpGi-hyper_", date, ".csv", sep = ""),
+  row.names = FALSE
+)
+write.csv(
+  symbol.CpGi.all,
+  file = paste(folder, "CpGi-all_", date, ".csv", sep = ""),
+  row.names = FALSE
+)
+```
+
+
+```{r}
+symbol.CpGi.hyper$context <- "CpG"
+symbol.CpGi.hyper$state <- "Hyper"
+symbol.CpGi.hypo$context <- "CpG"
+symbol.CpGi.hypo$state <- "Hypo"
+
+merged <- rbind(symbol.CpGi.hyper, symbol.CpGi.hypo)
+
+merged$Pred.Expr <- merged$meth.diff * -1
+```
+
+
+```{r}
+CpGi.all.GO <-
+  groupGO(
+    gene = symbol.CpGi.all$ENTREZID,
+    "org.Bt.eg.db",
+    ont = "BP",
+    level = 3,
+    readable = TRUE
+  )
+CpGi.hyper.GO <-
+  groupGO(
+    gene = symbol.CpGi.hyper$ENTREZID,
+    "org.Bt.eg.db",
+    ont = "BP",
+    level = 3,
+    readable = TRUE
+  )
+CpGi.hypo.GO <-
+  groupGO(
+    gene = symbol.CpGi.hypo$ENTREZID,
+    "org.Bt.eg.db",
+    ont = "BP",
+    level = 3,
+    readable = TRUE
+  )
+
+Islands_all <- as.data.frame(CpGi.all.GO)
+
+Islands <-  Islands_all %>%
+  filter(Count !=0)
+#Islands 
+
+
+write.csv(
+  Islands,
+  file = paste(
+    folder,
+    "Islands_GO",
+    date,
+    ".csv",
+    quote = FALSE,
+    sep = ""
+  ),
+  row.names = FALSE
+)
+```

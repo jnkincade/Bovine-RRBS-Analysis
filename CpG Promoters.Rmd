@@ -1,0 +1,303 @@
+---
+title: "CpG Promoters"
+author: "Kincade, Jessica"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Promoters
+
+```{r}
+promoters = regionCounts(CpG.Read, bov$promoters)
+#head(promoters[[1]])
+```
+
+
+
+```{r}
+promoters_filt <- filterByCoverage(promoters,
+                                       lo.count=10,
+                                       lo.perc=NULL,
+                                       hi.count=NULL,
+                                       hi.perc=99.9)
+# Perform simple normalization
+promoters_filt_norm <- normalizeCoverage(promoters_filt, method = "median")
+# Merge the samples again
+meth_promoters <- methylKit::unite(promoters_filt_norm, destrand=FALSE)
+```
+
+
+```{r}
+# Test for differential methylation... This might take a few minutes.
+myDiff_promoters <- calculateDiffMeth(meth_promoters, mc.cores=30)
+# Rank by significance
+myDiff_promoters <- myDiff_promoters[order(myDiff_promoters$qvalue),]
+```
+
+```{r}
+dim(getMethylDiff(myDiff_promoters, difference = 15, qvalue = 0.01))[1]
+```
+
+
+```{r}
+# get all differentially methylated promoters
+myDiff_promoters_all <-
+  getMethylDiff(myDiff_promoters, difference = 15, qvalue = 0.01)
+myDiff_promoters_hyper <-
+  getMethylDiff(
+    myDiff_promoters,
+    difference = 15,
+    qvalue = 0.01,
+    type = "hyper"
+  )
+myDiff_promoters_hypo <-
+  getMethylDiff(
+    myDiff_promoters,
+    difference = 15,
+    qvalue = 0.01,
+    type = "hypo"
+  )
+```
+
+
+```{r, echo = FALSE}
+a3 = dim(getMethylDiff(myDiff_promoters, difference = 10, qvalue = 0.01))[1]
+b3 = dim(getMethylDiff(myDiff_promoters, difference = 15, qvalue = 0.01))[1]
+c3 = dim(getMethylDiff(myDiff_promoters, difference = 20, qvalue = 0.01))[1]
+d3 = dim(getMethylDiff(myDiff_promoters, difference = 25, qvalue = 0.01))[1]
+
+print (paste("Number of sites associated with promoters with diff 10 is", a3))
+print (paste("Number of sites associated with promoters with diff 15 is", b3))
+print (paste("Number of sites associated with promoters with diff 20 is", c3))
+print (paste("Number of sites associated with promoters with diff 25 is", d3))
+
+```
+
+
+
+```{r, echo = FALSE}
+diff = c(10,15, 20, 25)
+DMR_prm = c(a3, b3, c3, d3)
+df_DMR_prm = data.frame(diff, DMR_prm)
+#df_DMR_prm
+```
+
+```{r, echo =FALSE}
+
+pl_diff_prom = ggplot(df_DMR_isl, aes(x = diff, y = DMR_prm)) +
+  geom_point(size = 3) +
+  
+    geom_line(col = "blue")+
+ 
+  ylab("Number of DMR (promoters)") + xlab("Parameters of diff")+
+  geom_vline(xintercept = 25, linetype = "dashed", color = "black", size = 0.5)+
+  geom_hline(yintercept = 8, linetype = "dashed", color = "black", size = 0.5)+
+  geom_vline(xintercept = 15, linetype = "dashed", color = "red", size = 0.5)+
+  geom_hline(yintercept = 84, linetype = "dashed", color = "red", size = 0.5)+
+  theme_classic()+
+
+theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"))
+
+pdf(file= '/home/jkincade/Methyl/4mo/PI/Plots/PIvsC-Promoters-WandWO-overdispcor.pdf')
+pl_diff_prom
+dev.off()
+```
+
+Choose difference 15 (red dotted line)
+
+#Using Genomation
+
+```{r}
+myDiff_promoters_annot <- annotateWithGeneParts(as((myDiff_promoters_all), "GRanges"), bov)
+myDiff_promoters_hyper_annot <- annotateWithGeneParts(as((myDiff_promoters_hyper), "GRanges"), bov)
+myDiff_promoters_hypo_annot <- annotateWithGeneParts(as((myDiff_promoters_hypo), "GRanges"), bov)
+# View the distance to the nearest Transcription Start Site; 
+#the target.row column indicates the row number in myDiff_islands_25p
+association.CpGp.all = getAssociationWithTSS(myDiff_promoters_annot)
+association.CpGp.hyper = getAssociationWithTSS(myDiff_promoters_hyper_annot)
+association.CpGp.hypo = getAssociationWithTSS(myDiff_promoters_hypo_annot)
+
+```
+
+
+```{r}
+#dim(association.CpGp.all)
+df.CpGp.hyper <- getData(myDiff_promoters_hyper)
+#head(df.CpGp.hyper)
+dim(df.CpGp.hyper)
+```
+
+
+```{r}
+df.CpGp.hyper$REFSEQ <- association.CpGp.hyper$feature.name
+#View(df.CpGp.hyper)
+dim (df.CpGp.hyper)
+#tail(df.CpGp.hyper)
+df.CpGp.hyper <-
+  separate(df.CpGp.hyper, "REFSEQ", c("REFSEQ", "version"), sep = "\\.")
+CpGp.hyper.gene.id <-
+  bitr(
+    df.CpGp.hyper$REFSEQ,
+    fromType = "REFSEQ",
+    toType = c("SYMBOL", "GENENAME", "ENTREZID"),
+    OrgDb = "org.Bt.eg.db",
+    drop = TRUE
+  )
+symbol.CpGp.hyper <-
+  merge(CpGp.hyper.gene.id, df.CpGp.hyper, by = "REFSEQ")
+#head(symbol.CpGp.hyper)
+```
+
+```{r}
+#View(symbol.CpGp.hyper)
+
+## CpGp Hypo ##
+df.CpGp.hypo <- getData(myDiff_promoters_hypo)
+#head(df.CpGp.hypo)
+dim(df.CpGp.hypo)
+#df.CpGp.hypo
+
+dim(association.CpGp.hypo)
+df.CpGp.hypo$REFSEQ <- association.CpGp.hypo$feature.name
+df.CpGp.hypo <-
+  separate(df.CpGp.hypo, "REFSEQ", c("REFSEQ", "version"), sep = "\\.")
+CpGp.hypo.gene.id <-
+  bitr(
+    df.CpGp.hypo$REFSEQ,
+    fromType = "REFSEQ",
+    toType = c("SYMBOL", "GENENAME", "ENTREZID"),
+    OrgDb = "org.Bt.eg.db",
+    drop = TRUE
+  )
+symbol.CpGp.hypo <-
+  merge(CpGp.hypo.gene.id, df.CpGp.hypo, by = "REFSEQ")
+#symbol.CpG.hypo <- merge(symbol.CpG.hypo, df.CpG.hypo.heatmap [,c(3:10)], by = "end")
+
+#head(symbol.CpGp.hypo)
+```
+
+```{r}
+## CpGp All ##
+df.CpGp.all <- getData(myDiff_promoters_all)
+dim(df.CpGp.all)
+
+df.CpGp.all$REFSEQ <- association.CpGp.all$feature.name
+df.CpGp.all <-
+  separate(df.CpGp.all, "REFSEQ", c("REFSEQ", "version"), sep = "\\.")
+CpGp.all.gene.id <-
+  bitr(
+    df.CpGp.all$REFSEQ,
+    fromType = "REFSEQ",
+    toType = c("SYMBOL", "GENENAME", "ENTREZID"),
+    OrgDb = "org.Bt.eg.db",
+    drop = TRUE
+  )
+symbol.CpGp.all <-
+  merge(CpGp.all.gene.id, df.CpGp.all, by = "REFSEQ")
+#symbol.CpG.all <- merge(symbol.CpG.all, df.CpG.all.heatmap [,c(3:10)], by = "end")
+#head(symbol.CpGp.all)
+```
+
+
+```{r}
+symbol.CpGp.hyper$context <- "CpG"
+symbol.CpGp.hyper$state <- "Hyper"
+symbol.CpGp.hypo$context <- "CpG"
+symbol.CpGp.hypo$state <- "Hypo"
+
+merged <- rbind(symbol.CpGp.hyper, symbol.CpGp.hypo)
+
+merged$Pred.Expr <- merged$meth.diff * -1
+```
+
+
+```{r}
+#write.csv(merged, file = paste(folder, "merged-DMRs", date, ".csv", sep = ""), row.names = FALSE)
+date = format(Sys.Date(), '%m-%d-%Y')
+write.csv(
+  symbol.CpGp.hypo,
+  file = paste(folder, "CpGp-Hypo_", date, ".csv", sep = ""),
+  row.names = FALSE
+)
+write.csv(
+  symbol.CpGp.hyper,
+  file = paste(folder, "CpGp-hyper_", date, ".csv", sep = ""),
+  row.names = FALSE
+)
+write.csv(
+  symbol.CpGp.all,
+  file = paste(folder, "CpGp-all_", date, ".csv", sep = ""),
+  row.names = FALSE
+)
+```
+
+```{r}
+## GO and KEGG ##
+
+CpGp.all.GO <-
+  groupGO(
+    gene = symbol.CpGp.all$ENTREZID,
+    "org.Bt.eg.db",
+    ont = "BP",
+    level = 3,
+    readable = TRUE
+  )
+CpGp.hyper.GO <-
+  groupGO(
+    gene = symbol.CpGp.hyper$ENTREZID,
+    "org.Bt.eg.db",
+    ont = "BP",
+    level = 3,
+    readable = TRUE
+  )
+CpGp.hypo.GO <-
+  groupGO(
+    gene = symbol.CpGp.hypo$ENTREZID,
+    "org.Bt.eg.db",
+    ont = "BP",
+    level = 3,
+    readable = TRUE
+  )
+
+Promoter_all <- as.data.frame(CpGp.all.GO)
+
+Promoter_GO <-  Promoter_all %>%
+  filter(Count !=0)
+Promoter_GO 
+
+write.csv(
+  Promoter_GO,
+  file = paste(folder, "Promoter_GO", date, ".csv", sep = ""),
+  row.names = FALSE
+)
+```
+
+## GETTING BARPLOTS WITH PATHWAYS
+
+```{r}
+#pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_IslandBarplotPathways_PIvsC.pdf')
+par(mar = c(4.1, 4.4, 4.1, 1.9), xaxs="i", yaxs="i")
+
+barplot(
+  CpGp.all.GO,
+  drop = TRUE,
+  showCategory = 10,
+  xlab = "Gene Count",
+  title = "CpG.all"
+)
+# barplot(CpGp.hyper.GO, drop = TRUE, showCategory = 10, xlab = "Gene Count", title = "CpG.hyper")
+barplot(
+  CpGp.hypo.GO,
+  drop = TRUE,
+  showCategory = 10,
+  xlab = "Gene Count",
+  title = "CpG.hypo"
+)
+#dev.off()
+```
+-

@@ -1,0 +1,1009 @@
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+setwd("/home/jkincade/Methyl/4mo/PI/BAMs/")
+folder = "/home/jkincade/Methyl/4mo/PI/Results/"
+date = format(Sys.Date(), '%m-%d-%Y')
+```
+
+
+# Installing Required Packages 
+## It is only necessary to do this the first time running this code
+
+```{r}
+# ## Installing required packages
+# install.packages("foreach")
+# install.packages("tidyr")
+# install.packages("BiocManager")
+# BiocManager::install("genomation")
+# BiocManager::install("methylKit")
+# BiocManager::install("TxDb.Btaurus.UCSC.bosTau9.refGene")
+# install.packages("vegan")
+# install.packages("ggbio")
+# install.packagges("pheatmap")
+```
+
+# Loading the packages
+## This will be done each time you open RStudio and aim to run this code
+
+```{r}
+library(foreach)
+library(BiocManager)
+library(genomation)
+library(methylKit)
+library(parallel)
+library(TxDb.Btaurus.UCSC.bosTau9.refGene)
+library(ggbio)
+library(pheatmap)
+library(ggpubr)
+library(vegan)
+```
+
+# 'CpG' can be replaced with either CHG or CHH to generate CHG or CHH sites in addition to CpG sites; only CpG sites are shown here. 
+
+
+# Aligning .bam files to the genome to generate bismark files
+
+```{r}
+# Create a list of .bam files
+bam.list <- list("144_PI_R1_val_1_bismark_bt2_pe.bam", "198_PI_R1_val_1_bismark_bt2_pe.bam", "2132_control_R1_val_1_bismark_bt2_pe.bam", "2147_control_R1_val_1_bismark_bt2_pe.bam", "2149_control_R1_val_1_bismark_bt2_pe.bam", "2156_control_R1_val_1_bismark_bt2_pe.bam", "2163_control_R1_val_1_bismark_bt2_pe.bam", "6_146_PI_R1_val_1_bismark_bt2_pe.bam", "6_186_PI_R1_val_1_bismark_bt2_pe.bam", "7_138_PI_R1_val_1_bismark_bt2_pe.bam")
+
+
+
+# Pair the files to more accessible sample IDs
+ids <- list("144.PI", "198.PI", "2132.C", "2147.C", "2149.C", "2156.C", "2163.C", "6146.PI", "6186.PI", "7138.PI")
+
+
+
+# Indicating treatment groups
+treatment.list <- c(1, 1, 0, 0, 0, 0, 0, 1, 1, 1)
+
+# Alignment of the .bam files
+
+foreach(i=1:10) %dopar% {
+  parallel_CpG_call <- processBismarkAln(
+    location=bam.list[i],
+    sample.id=ids[i],
+    assembly = "bosTau9",
+    save.folder = "/home/jkincade/Methyl/4mo/PI/Call-Lists/",
+    save.context = "CpG", read.context = "CpG",
+    treatment = treatment.list[i])
+}
+```
+
+# Read in the aligned data
+
+```{r}
+# Move your working directory to where the bismark files were stored
+setwd("/home/jkincade/Methyl/4mo/PI/Call-Lists/PI/")
+
+
+
+# Create a call list 
+
+CpG.Call.List <- list.files(pattern = ".*\\CpG.txt$")
+CpG.Call.List # Take note of the sample id order here!
+
+CpG.Call.List <- as.list(CpG.Call.List)
+
+# Read in the bismark files. Make sure that this list reflects the order of the CpG.Call.List in both the ids and treatment. 
+# For treatment = c()     0 = control, 1 = treatment 
+
+
+CpG.Read <- methRead(CpG.Call.List, sample.id = list("144.PI", "198.PI", "2132.C", "2147.C", "2149.C", "2156.C", "2163.C", "6146.PI", "6186.PI", "7138.PI"),
+                     assembly = "bosTau9", 
+                     treatment = c(1, 1, 0, 0, 0, 0, 0, 1, 1, 1), 
+                     context = "CpG")
+```
+
+
+# Generating descriptive statistics
+
+```{r}
+# Methylation statistics
+## Large peaks on either end of the histogram are normal
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_MethylStats_144.PI.pdf')
+getMethylationStats(CpG.Read[[1]], plot = TRUE, both.strands = FALSE)
+dev.off()
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_MethylStats_198.PI.pdf')
+getMethylationStats(CpG.Read[[2]], plot = TRUE, both.strands = FALSE)
+dev.off()
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_MethylStats_2132.C.pdf')
+getMethylationStats(CpG.Read[[3]], plot = TRUE, both.strands = FALSE)
+dev.off()
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_MethylStats_2147.C.pdf')
+getMethylationStats(CpG.Read[[4]], plot = TRUE, both.strands = FALSE)
+dev.off()
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_MethylStats_2149.C.pdf')
+getMethylationStats(CpG.Read[[5]], plot = TRUE, both.strands = FALSE)
+dev.off()
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_MethylStats_2156.C.pdf')
+getMethylationStats(CpG.Read[[6]], plot = TRUE, both.strands = FALSE)
+dev.off()
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_MethylStats_2163.C.pdf')
+getMethylationStats(CpG.Read[[7]], plot = TRUE, both.strands = FALSE)
+dev.off()
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_MethylStats_6146.PI.pdf')
+getMethylationStats(CpG.Read[[8]], plot = TRUE, both.strands = FALSE)
+dev.off()
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_MethylStats_6186.PI.pdf')
+getMethylationStats(CpG.Read[[9]], plot = TRUE, both.strands = FALSE)
+dev.off()
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_MethylStats_7138.PI.pdf')
+getMethylationStats(CpG.Read[[10]], plot = TRUE, both.strands = FALSE)
+dev.off()
+
+
+
+# Coverage statistics 
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_MethylCoverage_144.PI.pdf')
+getCoverageStats(CpG.Read[[1]], plot = TRUE, both.strands = FALSE)
+dev.off()
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_MethylCoverage_198.PI.pdf')
+getCoverageStats(CpG.Read[[2]], plot = TRUE, both.strands = FALSE)
+dev.off()
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_MethylCoverage_2132.C.pdf')
+getCoverageStats(CpG.Read[[3]], plot = TRUE, both.strands = FALSE)
+dev.off()
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_MethylCoverage_2147.C.pdf')
+getCoverageStats(CpG.Read[[4]], plot = TRUE, both.strands = FALSE)
+dev.off()
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_MethylCoverage_2149.C.pdf')
+getCoverageStats(CpG.Read[[5]], plot = TRUE, both.strands = FALSE)
+dev.off()
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_MethylCoverage_2156.C.pdf')
+getCoverageStats(CpG.Read[[6]], plot = TRUE, both.strands = FALSE)
+dev.off()
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_MethylCoverage_2163.C.pdf')
+getCoverageStats(CpG.Read[[7]], plot = TRUE, both.strands = FALSE)
+dev.off()
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_MethylCoverage_6146.PI.pdf')
+getCoverageStats(CpG.Read[[8]], plot = TRUE, both.strands = FALSE)
+dev.off()
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_MethylCoverage_6186.PI.pdf')
+getCoverageStats(CpG.Read[[9]], plot = TRUE, both.strands = FALSE)
+dev.off()
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_MethylCoverage_7138.PI.pdf')
+getCoverageStats(CpG.Read[[10]], plot = TRUE, both.strands = FALSE)
+dev.off()
+
+
+
+```
+# Filtering and normalization 
+```{r}
+# Filtering by coverage
+
+filtered.CpG.Read <- filterByCoverage(CpG.Read, lo.count = 10, lo.perc = NULL,hi.count = NULL, hi.perc = 99.9)
+
+
+
+# Normalization
+## method = "median" OR "mean" 
+
+normal.filtered.CpG.Read <- normalizeCoverage(filtered.CpG.Read, method = "median")
+united.CpG <- methylKit::unite(normal.filtered.CpG.Read, destrand = TRUE) # destrand = TRUE can improve coverage for CpG, but is not recommended for CHG or CHH
+
+
+
+# Filtering by standard deviation (graphs compare the matrix before and after filtering by standard deviation)
+
+percent.meth.CpG <- percMethylation(united.CpG)
+
+CpG.matrix <- matrixStats::rowSds(percent.meth.CpG)
+
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_PercentMethylation_Before_Filtering_CpG.pdf')
+hist(CpG.matrix, col = 'cornflowerblue', xlab = 'Std. Dev. per CpG', main="Before Filtering", breaks = 100)
+dev.off()
+
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_PercentMethylation_After_Filtering_CpG.pdf')
+par(mar = c(4.1, 4.4, 4.1, 1.9), xaxs="i", yaxs="i")
+hist(
+  CpG.matrix[CpG.matrix > 2],
+  col = 'cornflowerblue',
+  xlab = 'Std. Dev. per CpG',
+  breaks = 100,
+  main = "After Filtering"
+)
+dev.off()
+
+# See what percentage of sites were retained after filtering by standard deviation
+print("CpGs before filtering = ")
+nrow(united.CpG)
+before <- nrow(united.CpG)
+stdev.filtered.CpG <- united.CpG[CpG.matrix > 2]
+print("CpGs after filtering = ")
+nrow(stdev.filtered.CpG)
+after <- nrow(stdev.filtered.CpG)
+print("Percent CpGs Retained = ")
+round(after/before*100,2)
+
+
+
+```
+# Correlation Plot (be patient)
+
+```{r}
+# CpG
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_Correlation_CpG.pdf')
+par(mar = c(4.1, 4.4, 4.1, 1.9), xaxs="i", yaxs="i")
+getCorrelation(united.CpG, plot = TRUE)
+dev.off()
+
+```
+
+
+# Clustering and PCA plots 
+```{r}
+# These plots use ALL of the CpG sites after filtering but before differential analysis 
+
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_PIvsC_Clustering.pdf')
+clusterSamples(united.CpG, dist = "correlation", method = "ward.D2", plot = TRUE)
+dev.off()
+
+
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_PCA_Plot_PIvsC.pdf') 
+CpGPCA = PCASamples(united.CpG, obj.return = TRUE)
+dev.off()
+
+summary(CpGPCA)
+
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_PCA_Screeplot_PIvsC.pdf')
+PCASamples(united.CpG, screeplot = TRUE)
+dev.off()
+
+
+```
+# Removing 'chrUNs' (chromosome unknown)
+
+```{r}
+rowlist <- list()
+L <- 1
+for(i in 1:nrow(united.CpG)){
+  chr <- united.CpG$chr [i]
+  if(grepl("chrUn",chr)){
+    rowlist [[L]] <- i
+    L <- L + 1
+  }
+}
+#rowlist
+rw.length <- length(rowlist)
+rw.length.minus <- rowlist[[1]] - 1
+rowlist[[rw.length]]
+united.CpG <- united.CpG[-c(rowlist[[1]]:rowlist[[rw.length]]),]
+```
+
+
+# Calculating differentially methylated sites (DMS)
+
+```{r}
+CpG.Diff <- calculateDiffMeth(united.CpG, mc.cores = 30)
+
+# "MN" (McCullagh and Nedler) applies a basic overdispersion correction
+CpG.Diff1 <- calculateDiffMeth(united.CpG, overdispersion = "MN", test = "Chisq", mc.cores = 30)
+
+
+# CpG Stats
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/CpG_Stats_PIvsC.pdf')
+methSeg(
+CpG.Diff1,
+diagnostic.plot = TRUE,
+join.neighbours = FALSE)
+dev.off()
+```
+
+
+# Determining whether you should correct for overdispersion or not
+```{r}
+# These functions return the number of differentially methylated sites with varying values for 'meth.diff' when the data IS NOT corrected for overdispersion 
+
+a = dim(getMethylDiff(CpG.Diff, difference = 10, qvalue = 0.01))[1]
+print(paste("Number of sites with difference 10 for data that corrected for overdispersion is", a))
+b = dim(getMethylDiff(CpG.Diff, difference = 15, qvalue = 0.01))[1]
+print(paste("Number of sites with difference 15 for data that corrected for overdispersion is", b))
+c = dim(getMethylDiff(CpG.Diff, difference = 20, qvalue = 0.01))[1]
+print(paste("Number of sites with difference 20 for data that corrected for overdispersion is", c))
+d = dim(getMethylDiff(CpG.Diff, difference = 25, qvalue = 0.01))[1]
+print(paste("Number of sites with difference 25 for data that corrected for overdispersion is", d))
+e = dim(getMethylDiff(CpG.Diff, difference = 30, qvalue = 0.01))[1]
+print(paste("Number of sites with difference 30 for data that corrected for overdispersion is", e))
+f = dim(getMethylDiff(CpG.Diff, difference = 35, qvalue = 0.01))[1]
+print(paste("Number of sites with difference 35 for data that corrected for overdispersion is", f))
+g = dim(getMethylDiff(CpG.Diff, difference = 40, qvalue = 0.01))[1]
+print(paste("Number of sites with difference 40 for data that corrected for overdispersion is", g))
+h = dim(getMethylDiff(CpG.Diff, difference = 50, qvalue = 0.01))[1]
+print(paste("Number of sites with difference 50 for data that corrected for overdispersion is", h))
+i = dim(getMethylDiff(CpG.Diff, difference = 75, qvalue = 0.01))[1]
+print(paste("Number of sites with difference 75 for data that corrected for overdispersion is", i))
+
+# These functions return the number of differntially methylated sites with varying values for 'meth.diff' when the data IS corrected for overdispersion 
+
+a1 = dim(getMethylDiff(CpG.Diff1, difference = 10, qvalue = 0.01))[1]
+print(paste("Number of sites with difference 10 for data is", a1))
+b1 = dim(getMethylDiff(CpG.Diff1, difference = 15, qvalue = 0.01))[1]
+print(paste("Number of sites with difference 15 for data is", b1))
+c1 = dim(getMethylDiff(CpG.Diff1, difference = 20, qvalue = 0.01))[1]
+print(paste("Number of sites with difference 20 for data is", c1))
+d1 = dim(getMethylDiff(CpG.Diff1, difference = 25, qvalue = 0.01))[1]
+print(paste("Number of sites with difference 25 for data is", d1))
+e1 = dim(getMethylDiff(CpG.Diff1, difference = 30, qvalue = 0.01))[1]
+print(paste("Number of sites with difference 30 for data is", e1))
+f1 = dim(getMethylDiff(CpG.Diff1, difference = 35, qvalue = 0.01))[1]
+print(paste("Number of sites with difference 35 for data is", f1))
+g1 = dim(getMethylDiff(CpG.Diff1, difference = 40, qvalue = 0.01))[1]
+print(paste("Number of sites with difference 40 for data is", g1))
+h1 = dim(getMethylDiff(CpG.Diff1, difference = 50, qvalue = 0.01))[1]
+print(paste("Number of sites with difference 50 for data is", h1))
+i1 = dim(getMethylDiff(CpG.Diff1, difference = 75, qvalue = 0.01))[1]
+print(paste("Number of sites with difference 75 for data is", i1))
+
+
+library (xtable)
+# This creates a table displaying the varying numbers of DMS identified with varying 'meth.diff' WITHOUT dispersion 
+
+diff = c( 10, 15, 20, 25,  30, 35, 40, 50, 75)
+DMS = c(a1, b1, c1, d1, e1, f1, g1, h1, i1)
+df_DMS = data.frame(diff, DMS)
+xtable(df_DMS)
+
+# This creates a table displaying the varying numbers of DMS identified with varying 'meth.diff' WITH dispersion 
+
+diff_c = c( 10, 15, 20, 25, 30, 35, 40, 50, 75)
+DMS_c = c(a, b, c, d, e, f, g, h, i)
+df_DMS_c = data.frame(diff_c, DMS_c )
+xtable(df_DMS_c)
+
+
+
+
+# Bar plot of numbers of DMS with varying meth.diff
+
+## WITHOUT overdispersion correction 
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_Barplot_WITHOUT_overdisp.cor_PIvsC.pdf')
+ ggplot(df_DMS, aes(x = diff, y = DMS)) +
+   geom_bar(stat = "identity", position = position_dodge()) +
+  
+   theme_classic() + ylab("Number of DMS + Disp") + xlab("Meth.Diff")+
+   scale_color_brewer()+ theme(legend.position = "none")+theme_bw()
+ dev.off()
+ 
+ ## WITH overdispersion correction 
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_Barplot_WITH_overdisp.cor_PIvsC.pdf')
+ ggplot(df_DMS_c, aes(x = diff, y = DMS_c)) +
+   geom_bar(stat = "identity", position = position_dodge()) +
+  
+   theme_classic() + ylab("Number of DMS + Disp") + xlab("Meth.Diff")+
+   scale_color_brewer()+ theme(legend.position = "none")+theme_bw()
+ dev.off()
+ 
+# Line graphs of the number of DMS with varying meth.diff
+
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_LineGraph_WandWO_overdisp.cor_PIvsC.pdf')
+plDMS = ggplot(df_DMS, aes(x = diff, y = DMS)) +
+  geom_point(size = 3) +
+  
+    geom_line(col = "blue")+
+ 
+  ylab("Number of DMS") + xlab("Meth.Diff")+
+  geom_vline(xintercept = 25, linetype = "dashed", color = "black", size = 0.5)+
+  geom_hline(yintercept = 2325, linetype = "dashed", color = "black", size = 0.5)+
+  
+  theme(legend.position = "none")+
+  theme_classic()+
+ theme(axis.text.x=element_text(size=20))+
+ theme(axis.text.y=element_text(size=20))
+theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"))
+  scale_color_manual(values = c("Blue Line" = "blue"), name = "Legend Title")
+
+
+plDMS + geom_line(data = df_DMS_c, aes(x = diff_c, y = DMS_c), color = "red")+ 
+geom_point(data = df_DMS_c, aes(x = diff, y =  DMS_c), color = "red", size = 3)+
+geom_hline(yintercept = 244, linetype = "dashed", color = "black", size = 0.5)+
+   scale_color_manual(values = c("Red Line" = "red"), name = "New Legend") +
+   guides(color = guide_legend(title = "Legend Title"))
+dev.off()
+
+## The blue line demonstrates the number of DMS at varying meth.diff WITHOUT overdispersion correction 
+## The red line demonstrates the number of DMS at varying meth.diff WITH overdispersion correction 
+```
+# I went forward without correcting for overdispersion, so I renamed the general variable to reflect the method I had chosen
+
+```{r}
+CpG.Diff <- calculateDiffMeth(united.CpG, mc.cores = 30)
+```
+
+# Get the CpGs from the CpG Diff analysis 
+```{r}
+## get the hyper methylated bases 
+CpG.hyper <- getMethylDiff(CpG.Diff, difference = 25, qvalue = 0.01, type = "hyper")
+
+## get the hypo methylated bases
+CpG.hypo <- getMethylDiff(CpG.Diff, difference = 25, qvalue = 0.01, type = "hypo")
+
+## get all of the differentially methylated bases 
+CpG.all <-  getMethylDiff(CpG.Diff, difference = 25, qvalue = 0.01)
+```
+
+
+
+
+# Graphing DMS per chromosome
+```{r}
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_PIvsC_CpG_DMperChr.pdf')
+diffMethPerChr(CpG.Diff, plot = TRUE, qvalue.cutoff = 0.01, meth.cutoff = 25)
+dev.off()
+```
+# Circos plots
+
+```{r}
+# Get the chromosome lengths for Bos Taurus 
+library(TxDb.Btaurus.UCSC.bosTau9.refGene)
+chr.len = seqlengths(TxDb.Btaurus.UCSC.bosTau9.refGene)
+chr.len = chr.len[grep("_|M|X|Y", names(chr.len), invert = T)]
+
+
+
+# Circos plot
+
+ideoDMC <- function(methylDiff.obj, chrom.length, difference = 25, 
+                    qvalue = 0.01, circos = FALSE, title = "test", hyper.col = "magenta", 
+                    hypo.col = "green") {
+  require(methylKit)
+  require(GenomicRanges)
+  require(ggbio)
+  
+  # chrom.length
+  chrom.length = chr.len
+  myIdeo <- GRanges(seqnames = names(chrom.length), ranges = IRanges(start = 1, 
+                                                                     width = chrom.length))
+  seqlevels(myIdeo) = names(chrom.length)
+  seqlengths(myIdeo) = (chrom.length)
+  
+  
+  hypo = getMethylDiff(methylDiff.obj, difference = difference, qvalue = qvalue, 
+                        type = "hypo")
+  hyper = getMethylDiff(methylDiff.obj, difference = difference, qvalue = qvalue, 
+                         type = "hyper")
+  
+  g.per = as(hyper, "GRanges")
+  seqlevels(g.per, force=TRUE) = seqlevels(myIdeo)
+  seqlengths(g.per)=(chrom.length)
+  
+  g.po = as(hypo, "GRanges")
+  seqlevels(g.po, force=TRUE) = seqlevels(myIdeo)
+  seqlengths(g.po)=(chrom.length)
+  
+  values(g.po)$id = "hypo"
+  values(g.per)$id = "hyper"
+  
+  if (circos) {
+    
+    p <- ggplot2::ggplot() + layout_circle(myIdeo, geom = "ideo", fill = "gray70", 
+                                  radius = 39, trackWidth = 2)
+    
+    
+    p <- p + layout_circle(c(g.po, g.per), geom = "point", 
+                           size = 3, aes(x = midpoint, 
+                                         y = meth.diff, color = id), radius = 25, trackWidth = 30) +              
+      scale_colour_manual(values = c(hyper.col, hypo.col))
+    p + layout_circle(myIdeo, geom = "text", aes(label = seqnames), 
+                      vjust = 0, radius = 55, trackWidth = 7) + labs(title = title)
+    
+  } else {
+    
+    p <- ggplot2::ggplot() + layout_karyogram(myIdeo, cytoband = FALSE)
+    p + layout_karyogram(c(g.po, g.per), geom = "point", size = 3, 
+                         aes(x = midpoint, 
+                             y = meth.diff, color = id)) + scale_colour_manual(values = c(hyper.col, 
+                                                                                          hypo.col)) + labs(title = title)
+    # new alternative commented out
+    #autoplot(c(g.po, g.per), layout = "karyogram", geom = "point", size = 0.65, 
+    #aes(x = midpoint,y = meth.diff, color = id))  + scale_colour_manual(values = c(hyper.col, 
+    #                                                                                        hypo.col)) + labs(title = title)
+    
+  }
+}
+
+
+
+
+require(methylKit)
+require(GenomicRanges)
+require(ggbio)
+
+# chrom.length
+chrom.length = chr.len
+myIdeo <-
+  GRanges(
+    seqnames = names(chrom.length),
+    ranges = IRanges(start = 1,
+                     width = chrom.length))
+  seqlevels(myIdeo) = names(chrom.length)
+  seqlengths(myIdeo) = (chrom.length)
+  
+  
+  hypo = getMethylDiff(CpG.Diff, difference = 25, qvalue = 0.01, 
+                        type = "hypo")
+  print (paste("Number of hypomethylated sites is", nrow(hypo)))
+  hyper = getMethylDiff(CpG.Diff, difference = 25, qvalue = 0.01, 
+                         type = "hyper")
+  print (paste("Number of hypermetyhlated sites is", nrow(hyper)))
+  
+  g.per = as(hyper, "GRanges")
+  seqlevels(g.per, pruning.mode="coarse") <- seqlevels(myIdeo)
+  #seqlevels(g.per) = seqlevels(myIdeo)
+  seqlengths(g.per)=(chrom.length)
+  
+  g.po = as(hypo, "GRanges")
+  #str(g.po)
+  seqlevels(g.po, pruning.mode="coarse") = seqlevels(myIdeo)
+  seqlengths(g.po)=(chrom.length)
+  
+  values(g.po)$id = "Hypomethylated"
+  values(g.per)$id = "Hypermethylated"
+   #if (circos) {
+  
+  seqlevels(myIdeo) <- sub("^chr", "", seqlevels(myIdeo))
+  
+     pl1 =  ggplot2::ggplot() + layout_circle(myIdeo, geom = "ideo", fill = "black", 
+                                  radius = 40, trackWidth = 2) + 
+      layout_circle(c(g.po, g.per), geom = "point", 
+                           size = 0.2, aes(x = midpoint, 
+                                         y = meth.diff, color = id), 
+                    radius = 25, trackWidth = 30) +              
+      scale_colour_manual(values = c("green", "brown"))+
+     layout_circle(myIdeo, geom = "text", aes(label = seqnames), grid = FALSE,  vjust = 0, radius = 55, trackWidth = 5, cex = 9)
+    #+ 
+      #labs(title = title)
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_CircosPlot_PIvsC.pdf')
+pl1 
+dev.off()
+
+```
+
+
+# Karyogram Plot
+
+```{r}
+ pl2 =  ggplot() + layout_karyogram(myIdeo)+
+    layout_karyogram(c(g.po, g.per), geom = "point", size = 0.2, 
+                         aes(x = midpoint, 
+                             y = meth.diff, color = id)) +
+    scale_colour_manual(values = c(
+      "green", "brown")) + labs(title = "Karyogram of CpG", cex = 2)
+
+
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_Karyogram_PIvsC.pdf')   
+pl2  
+dev.off()
+
+```
+
+## Percent Methylation per Chr Bar Plot
+
+```{r, echo = FALSE, percentMethylation, fig.height = 7, fig.width = 6}
+par(mar = c(4.1, 4.4, 4.1, 1.9), xaxs="i", yaxs="i")
+ChromosomeTable <- diffMethPerChr(CpG.Diff, plot = FALSE, qvalue.cutoff = 0.01, meth.cutoff = 25)
+write.csv(ChromosomeTable, "ChromosomeTable.csv")
+diff = read.csv("ChromosomeTable.csv")
+test_data = data.frame (cbind(diff$diffMeth.per.chr.chr, diff$diffMeth.per.chr.percentage.of.hypermethylated, diff$diffMeth.per.chr.percentage.of.hypomethylated))
+
+test_data$X2 = as.numeric(test_data$X2)
+
+test_data$X3 = as.numeric(test_data$X3)
+
+#str(test_data)
+colnames(test_data) = c ("sample", "Hypermethylated", "Hypomethylated")
+
+test_data$sample = factor(test_data$sample, levels = c("chr1",  "chr2",  "chr3",  "chr4",  "chr5",  "chr6",  "chr7",  "chr8",  "chr9",  "chr10",
+ "chr11", "chr12", "chr13", "chr14", "chr15", "chr16", "chr17", "chr18", "chr19", "chr20",
+"chr21", "chr22", "chr23", "chr24", "chr25", "chr26", "chr27", "chr28", "chr29", "chrX"))
+
+## Instead of theme_minimal() we can use theme_bw()
+
+p1 = ggplot(test_data, aes(Hypermethylated, sample)) +
+  geom_col(fill = "green") + theme_bw() + theme(panel.grid.major = element_blank()) +
+  theme(panel.border = element_rect(
+    fill = NA,
+    colour = "black",
+    size = 1
+  )) +
+  scale_x_reverse() +
+  theme(
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.title.y = element_blank(),
+    axis.text.x = element_text(size = 10, color = "black"),
+    axis.title = element_text(size = 10),
+   # plot.margin = margin(5.5, 0, 5.5, 5.5)
+  )
+
+p2 <- ggplot(test_data, aes(Hypomethylated, sample)) +
+  geom_col(fill = "brown") + theme_bw() + theme(panel.grid.major = element_blank()) +
+  theme(panel.border = element_rect(
+    fill = NA,
+    colour = "black",
+    linewidth = 1
+  )) +
+  theme(
+    axis.title.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    axis.text.y = element_text(size = 10, color = "black"),
+    
+    axis.ticks.length = unit(0, "pt"),
+    axis.text.x = element_text(size = 10, color = "black"),
+    axis.title = element_text(size = 10),
+   # plot.margin = margin(5.5, 5.5, 5.5, 0.1),
+    axis.text.y.left = element_text(margin = margin(0, 5.5, 0, 5.5))
+  )
+
+# theme(axis.text=element_text(size=12),
+#         axis.title=element_text(size=14,face="bold"))
+
+MPerChr <- ggarrange(p1, p2)
+
+
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_PercentMethylationPerCHR_PIvsC.pdf')
+MPerChr
+dev.off()
+
+```
+# Volcano Plot
+```{r}
+
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_Volcano_PIvsC.pdf')
+CpG.Diff$threshold = with(CpG.Diff, ifelse(abs(CpG.Diff$meth.diff) >= 25 & CpG.Diff$qvalue <= 0.01, sign(CpG.Diff$meth.diff), 1.5))
+CpG.Diff$threshold = as.factor(with(CpG.Diff, ifelse(threshold==1, "Hypomethylated", ifelse(threshold==-1, "Hypermethylated", "Not Significant"))))
+colors <- c("brown", "green", "black")
+plot(CpG.Diff$meth.diff, -log10(CpG.Diff$qvalue), frame.plot=FALSE, pch = 20, main= "4mo CpG Methylation TI vs C", xlab="% Differential Methylation", ylab="-log10(qvalue)", cex.lab = 1.5, cex.axis = 1.5, cex.main = 1.5, col=colors[factor(CpG.Diff$threshold)])
+     abline(v=c(-25,25),col="darkgrey",lty=5)
+     abline(h=2, col="darkgrey", lty=5)
+     box(bty="l")
+     legend("top",
+            legend = c("Hypomethylated", "Not Significant", "Hypermethylated"), pch=16, cex = 1.2, col = c("brown", "black", "green"))
+dev.off()
+
+```
+
+# PCA plots using all CpG sites after filtering but before differential analysis 
+
+```{r}
+
+DMSPositions <- rep(0, times = length(CpG.all$chr)) 
+for (i in 1:length(DMSPositions)) {
+  DMSPositions[i] <- which(getData(CpG.all)$start[i] == getData(united.CpG)$start)
+}  
+tail(DMSPositions) 
+DMS.Matrix <- united.CpG[DMSPositions,]
+# This next function should return 'TRUE', if not, then the vector was not created correctly 
+sum((DMS.Matrix$start) == (CpG.all$start)) == length(CpG.all$start)  
+
+sample.id = c("144.PI", "198.PI", "2132.C", "2147.C", "2149.C", "2156.C", "2163.C", "6146.PI", "6186.PI", "7138.PI")
+# Specify which treatment the samples were from. 1 is the treatment () and 0 is the control ()
+## Make sure to reflect the initial order of IDs in numerical order from smallest to largest 
+treatment <- c(rep(1, times = 2), rep(0, times = 5), rep(1, times = 3))
+allDataPCA = PCASamples(united.CpG, obj.return = TRUE)
+plotCustomization <- data.frame(sample = sample.id, treatment) 
+
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_PIvsC_AllDataPCA.pdf')
+fig.allDataPCA <-
+  ordiplot(
+    allDataPCA, choices = c(1, 2), type = "none",
+    display = "sites", cex = 2, xlab = "",
+    ylab = "", xaxt = "n", yaxt = "n") 
+points(fig.allDataPCA, "sites", ### Make sure that these repetitions also reflect the order of your ids
+       bg = c(rep("grey", times = 2), rep("black", times =5), rep("grey", times = 3)), 
+       col = c(rep("black", times =5)), 
+       pch = c(rep(21, times = 5), rep(21, times = 5)), , cex = 3) 
+#Add each sample 
+ordiellipse(allDataPCA, plotCustomization$treatment, show.groups = "1", 
+            col = "grey", lwd = 1.5) #Add confidence ellipse around TI samples
+ordiellipse(allDataPCA, plotCustomization$treatment, show.groups = "0", 
+            col = "black", lwd = 1.5)
+
+### Make sure to change the PC1 and PC2 values to reflect your own data
+axis(side =  1,  labels = TRUE, col = "black", cex.axis = 1.3) #Add x-axis
+#mtext(side = 1, text = "PC1 (13.19%)", line = 3, cex = 1.5) #Add x-axis label
+
+axis(side =  2, labels = TRUE, col = "black", cex.axis = 1.3, las = 1) #Add y-axis
+#mtext(side = 2, text = "PC2 (12.46%)", line = 3, cex = 1.5) #Add y-axis label
+
+legend("topright", 
+       legend = c("Control", "TI"), 
+       col = c("black", "grey"), 
+       pch = c(16, 16), 
+       cex = 1.5, bty = "n") #Add legend   
+
+dev.off()
+```
+
+
+```{r}
+#Run a PCA analysis on percent methylation for all samples. 
+#methylKit uses prcomp to create the PCA matrix
+DMSDataPCA <- PCASamples(DMS.Matrix, obj.return = TRUE) 
+CpGPCA = PCASamples(united.CpG, obj.return = TRUE)
+#Look at summary statistics. 
+#The first PC explains 27.7.6% of variation, the second PC explains 10.3% of variation
+summary(CpGPCA)
+summary(DMSDataPCA)
+```
+# PCA plot for DMS only 
+
+```{r, echo = FALSE}
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_PIvsC_DMSPCA.pdf')
+ #Specify inner and outer margins
+par(mar = c(5, 5, 1.5, 1.5))
+#Use ordiplot to create base biplot. 
+fig.DMSDataPCA <- ordiplot(DMSDataPCA, choices = c(1, 2), type = "none", 
+                           display = "sites", cex = 0.5, xlab = "", 
+                           ylab = "", xaxt = "n", yaxt = "n") 
+#Add points
+points(fig.DMSDataPCA, "sites", bg = c(rep("grey", times = 2), rep("black", times =5), rep("grey", times =3)), 
+       col = c(rep("black", times = 10)), 
+       pch = c(rep(21, times = 5), rep(21, times = 5)), cex = 2.5) 
+#Add ellipses
+ordiellipse(DMSDataPCA, plotCustomization$treatment, show.groups = "1", 
+            col = "grey", lwd = 1.5)
+ordiellipse(DMSDataPCA, plotCustomization$treatment, show.groups = "0",
+            col = "black", lwd = 1.5) 
+### Make sure to change the PCA labels to reflect your own data
+axis(side =  1, labels = TRUE, col = "black", cex.axis = 1.2) #Add x-axis
+mtext(side = 1, text = "PC 1 (22.23%)", line = 3, cex = 1.5) #Add x-axis label
+
+axis(side =  2, labels = TRUE, col = "black", cex.axis = 1.2, las = 1) #Add y-axis
+mtext(side = 2, text = "PC 2 (6.12%)", line = 3, cex = 1.5) #Add y-axis label
+
+legend("bottom", 
+       pch = c(16, 16), 
+       legend = c("Control", "TI"), 
+       col = c("black", "grey"), 
+       cex = 1.5, bty = "n") 
+
+dev.off()
+```
+
+
+# Heatmap 
+```{r, echo = FALSE}
+percMethDMS <- percMethylation(DMS.Matrix)
+                             
+dim(percMethDMS)
+
+percMethDMS <- percMethylation(DMS.Matrix, rowids = TRUE)
+head(percMethDMS)
+dim(percMethDMS)
+
+# Change the nrow to the value returned from dim(percMethDML)
+percMethDMSm = matrix(percMethDMS, nrow = 1346, ncol = 10)
+head(percMethDMSm )
+
+colnames(percMethDMSm)<-c("2132.C", "2147.C","2149.C", "2156.C", "2163.C", "144.PI", "198.PI", "6146.PI", "6186.PI", "7138.PI")
+
+pdf(file = "/home/jkincade/Methyl/4mo/PI/Plots/4mo_PIvsC_Heatmap.pdf")
+par(mar = c(5, 5, 1, 1)) #Specify inner and outer margins
+plotColors = colorRampPalette(c("white", "black"),space="rgb")(256)
+columns <- data.frame(sample = rep(c("Control", "TI"), c(5,5)))
+pheatmap(percMethDMS, color = plotColors, annotation_col = , 
+         cluster_rows = TRUE, clustering_distance_rows = "euclidean", treeheight_row = 0, show_rownames = FALSE,
+         cluster_cols = TRUE, clustering_distance_cols = "euclidean", treeheight_col = 30, show_colnames = TRUE, angle_col = 45, cex=1.2)
+annotation_colors = list(pCO2 = c(Ambient = "black", Treatment = "black"))
+annotation_legend = TRUE
+annotation_names_col = FALSE
+legend = TRUE
+dev.off()
+
+```
+
+
+
+## Annotating the CpGs
+
+```{r}
+## Loading in the annotation data
+bov <- readTranscriptFeatures("/home/jkincade/Methyl/bosTau9_RefSeq.txt")
+
+
+
+annotated.CpG.hyper <- annotateWithGeneParts(as(CpG.hyper, "GRanges"), bov)
+annotated.CpG.hypo <- annotateWithGeneParts(as(CpG.hypo, "GRanges"), bov)
+annotated.CpG.all <- annotateWithGeneParts(as(CpG.all, "GRanges"), bov)
+```
+
+## Getting the association with transcription start site (TSS) 
+```{r}
+
+association.CpG.hyper <- getAssociationWithTSS(annotated.CpG.hyper)
+association.CpG.hypo <- getAssociationWithTSS(annotated.CpG.hypo)
+association.CpG.all <- getAssociationWithTSS(annotated.CpG.all)
+
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_PIvsC_TSS_association.pdf')
+hist(association.CpG.all$dist.to.feature[abs(association.CpG.all$dist.to.feature)<=100000],main="distance to nearest TSS",xlab="distance in bp",breaks=50,col="brown4")
+dev.off()
+
+#plotTargetAnnotation(annotated.CpG.all, main = "Differential Methylation Annotation")
+#getMembers(annotated.CpG.hyper) # whether the DMS are within promoters, introns or exons
+#class(association.CpG.all)
+#View(association.CpG.all)
+
+genomation::getTargetAnnotationStats(annotated.CpG.all, percentage = TRUE, precedence = TRUE)
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_PIvsC_AnnotationTIeChart.pdf')
+genomation::plotTargetAnnotation(annotated.CpG.all, precedence = TRUE, main = "CpG.All.DMC")
+dev.off()
+genomation::getFeatsWithTargetsStats(annotated.CpG.all, percentage = TRUE)
+```
+
+
+```{r}
+dim(association.CpG.hyper)
+
+df.CpG.hyper <- getData(CpG.hyper)
+#head(df.CpG.hyper)
+dim(df.CpG.hyper)[1]
+
+df.CpG.hyper$REFSEQ <- association.CpG.hyper$feature.name
+
+#tail(df.CpG.hyper)
+library(tidyr)
+library(clusterProfiler)
+df.CpG.hyper <-
+  separate(df.CpG.hyper, "REFSEQ", c("REFSEQ", "version"), sep = "\\.")
+CpG.hyper.gene.id <-
+  bitr(
+    df.CpG.hyper$REFSEQ,
+    fromType = "REFSEQ",
+    toType = c("SYMBOL", "GENENAME", "ENTREZID"),
+    OrgDb = "org.Bt.eg.db",
+    drop = TRUE
+  )
+symbol.CpG.hyper <- merge(CpG.hyper.gene.id, df.CpG.hyper, by = "REFSEQ")
+#head(symbol.CpG.hyper)
+```
+
+```{r}
+## CpG Hypo ##
+df.CpG.hypo <- getData(CpG.hypo)
+#head(df.CpG.hypo)
+dim(df.CpG.hypo)
+dim(association.CpG.hypo)
+df.CpG.hypo$REFSEQ <- association.CpG.hypo$feature.name
+df.CpG.hypo <-
+  separate(df.CpG.hypo, "REFSEQ", c("REFSEQ", "version"), sep = "\\.")
+CpG.hypo.gene.id <-
+  bitr(
+    df.CpG.hypo$REFSEQ,
+    fromType = "REFSEQ",
+    toType = c("SYMBOL", "GENENAME", "ENTREZID"),
+    OrgDb = "org.Bt.eg.db",
+    drop = TRUE
+  )
+symbol.CpG.hypo <-
+  merge(CpG.hypo.gene.id, df.CpG.hypo, by = "REFSEQ")
+#symbol.CpG.hypo <- merge(symbol.CpG.hypo, df.CpG.hypo.heatmap [,c(3:10)], by = "end")
+#head(symbol.CpG.hypo)
+```
+
+```{r}
+## CpG All ##
+df.CpG.all <- getData(CpG.all)
+dim(df.CpG.all)
+dim(association.CpG.all)
+
+df.CpG.all$REFSEQ <- association.CpG.all$feature.name
+df.CpG.all <-
+  separate(df.CpG.all, "REFSEQ", c("REFSEQ", "version"), sep = "\\.")
+CpG.all.gene.id <-
+  bitr(
+    df.CpG.all$REFSEQ,
+    fromType = "REFSEQ",
+    toType = c("SYMBOL", "GENENAME", "ENTREZID"),
+    OrgDb = "org.Bt.eg.db",
+    drop = TRUE
+  )
+symbol.CpG.all <- merge(CpG.all.gene.id, df.CpG.all, by = "REFSEQ")
+#symbol.CpG.all <- merge(symbol.CpG.all, df.CpG.all.heatmap [,c(3:10)], by = "end")
+#head(symbol.CpG.all)
+
+```
+
+```{r}
+symbol.CpG.hyper$context <- "CpG"
+symbol.CpG.hyper$state <- "Hyper"
+symbol.CpG.hypo$context <- "CpG"
+symbol.CpG.hypo$state <- "Hypo"
+
+merged <- rbind(symbol.CpG.hyper, symbol.CpG.hypo)
+```
+
+
+```{r}
+date = format(Sys.Date(), '%m-%d-%Y')
+date
+write.csv(
+  symbol.CpG.hypo,
+  file = paste(folder, "4mo-PIvsC-CpG-DMS-Hypo_", date, ".csv", sep = ""),
+  row.names = FALSE
+)
+write.csv(
+  symbol.CpG.hyper,
+  file = paste(folder, "4mo-PIvsC-CpG-DMS-Hyper_", date, ".csv", sep = ""),
+  row.names = FALSE
+)
+write.csv(
+  symbol.CpG.all,
+  file = paste(folder, "4mo-PIvsC-CpG-DMS-All_", date, ".csv", sep = ""),
+  row.names = FALSE
+)
+```
+
+
+```{r}
+length(unique(symbol.CpG.hyper$GENENAME))
+length(unique(symbol.CpG.hypo$GENENAME))
+```
+
+
+
+```{r}
+#####################################################################################
+## GO and KEGG ##
+
+CpG.all.GO <-
+  groupGO(
+    gene = symbol.CpG.all$ENTREZID,
+    "org.Bt.eg.db",
+    ont = "BP",
+    level = 3,
+    readable = TRUE
+  )
+CpG.hyper.GO <-
+  groupGO(
+    gene = symbol.CpG.hyper$ENTREZID,
+    "org.Bt.eg.db",
+    ont = "BP",
+    level = 3,
+    readable = TRUE
+  )
+CpG.hypo.GO <-
+  groupGO(
+    gene = symbol.CpG.hypo$ENTREZID,
+    "org.Bt.eg.db",
+    ont = "BP",
+    level = 3,
+    readable = TRUE
+  )
+```
+
+```{r}
+head(CpG.all.GO)
+```
+
+
+
+
+```{r}
+#print ("GETTING BARPLOTS WITH PATHWAYS")
+
+x = CpG.all.GO[order(CpG.all.GO$Count, decreasing = TRUE) ]
+#head(x, 30)
+#x$GeneRatio = as.numeric(x$GeneRatio)
+#head(head(x, 30))
+#CpG.hyper.GO[order(CpG.hyper.GO$Count), ]
+#CpG.hypo.GO[order(CpG.hypo.GO$Count), ]
+
+pdf(file = '/home/jkincade/Methyl/4mo/PI/Plots/4mo_PIvsC_DMS_KEGG-GO.pdf')
+par(mar = c(4.1, 4.4, 4.1, 1.9), xaxs="i", yaxs="i")
+
+barplot(CpG.all.GO, drop = TRUE, showCategory = 10, xlab = "Gene Count", title = "CpG.all")
+barplot(CpG.hyper.GO, drop = TRUE, showCategory = 10, xlab = "Gene Count", title = "CpG.hyper")
+barplot(CpG.hypo.GO, drop = TRUE, showCategory = 10, xlab = "Gene Count", title = "CpG.hypo")
+
+dev.off()
+
+#####################################################################################
+
+```
+
