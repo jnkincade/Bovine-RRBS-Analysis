@@ -3,4 +3,4 @@ This branch contains files from differential analysis of DNA from white blood ce
 Code here was derived from @hanahm1 (GitHub) with the help of @dilkamur (GitHub). 
 
 Please cite the code appropriately using :
-jkincade. (2024). jnkincade/Bovine-RRBS-Analysis: 4 month old PI vs C (v1.0.0). Zenodo. https://doi.org/10.5281/zenodo.13249639
+Kincade, J. N., Murtazina, D., & Georges, H. M. (2024). jnkincade/Bovine-RRBS-Analysis: 4 month old PI vs C (v1.0.0). Zenodo. https://doi.org/10.5281/zenodo.13249639
