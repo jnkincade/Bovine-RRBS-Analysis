@@ -2,4 +2,6 @@
 Separate branches are established and contain files for different datasets. 
 
 # 4 month old PIvsC 
-This branch contains files from differential analysis of DNA from white blood cells collected from heifers persistently infected (PI) with BVDV and age-matched control heifers. This analysis is paired with data that can be accessed on the NCBI GEO Database (GSE271244) and publication titled "Epigenomic alterations in calves persistently infected with Bovine Viral Diarrhea Virus."
+This branch contains files from differential analysis of DNA from white blood cells collected from heifers persistently infected (PI) with BVDV and age-matched control heifers. This analysis is paired with data that can be accessed on the NCBI GEO Database (GSE271244) and publication titled "Epigenomic alterations in calves persistently infected with Bovine Viral Diarrhea Virus." 
+
+Code here was derived from @hanahm1 (GitHub) with the help of @Dilkamur (GitHub). 
